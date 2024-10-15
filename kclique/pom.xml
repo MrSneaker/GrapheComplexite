@@ -25,6 +25,11 @@
             <artifactId>choco-graph</artifactId>
             <version>4.2.2</version>
         </dependency>
+        <dependency>
+            <groupId>org.choco-solver</groupId>
+            <artifactId>choco-parsers</artifactId>
+            <version>4.10.14</version>
+        </dependency>
     </dependencies>
    
 
