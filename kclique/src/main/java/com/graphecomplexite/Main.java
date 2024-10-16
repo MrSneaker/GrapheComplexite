@@ -9,7 +9,7 @@ public class Main {
     public static void main(String[] args) {
         // Chemin vers le fichier FlatZinc à résoudre
         String projectRoot = System.getProperty("user.dir");
-        String filePath = projectRoot + "/kclique/data/graph_color1.fzn";
+        String filePath = projectRoot + "/kclique/data/model1_graph100_k_5.fzn";
 
         // Crée une instance de Flatzinc
         Flatzinc flatzinc = new Flatzinc();
@@ -29,9 +29,10 @@ public class Main {
 
         if (hasSolution) {
             System.out.println("Solution trouvée !");
-            // Afficher les résultats ici, par exemple :
             for (IntVar var : model.retrieveIntVars(true)) {
-                System.out.println(var.getName() + " = " + var.getValue());
+                if(var.getName().contains("X_")) { // on print les nodes qui constitue la clique
+                    System.out.println(var.getName() + " = " + var.getValue());
+                }
             }
 
         } else {
