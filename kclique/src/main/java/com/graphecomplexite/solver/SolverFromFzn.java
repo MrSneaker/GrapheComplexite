@@ -38,6 +38,6 @@ public abstract class SolverFromFzn {
     }
 
     public int getNbVar() {
-        return model.retrieveIntVars(true).length;
+        return model.getVars().length;
     }
 }

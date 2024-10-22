@@ -13,7 +13,7 @@ import org.jfree.data.xy.XYSeries;
 import org.jfree.data.xy.XYSeriesCollection;
 
 public class MedianTimePlotter extends ApplicationFrame {
-    public MedianTimePlotter(String applicationTitle, String chartTitle, Map<Double, Double> data) {
+    public MedianTimePlotter(String applicationTitle, String chartTitle, Map<Integer, Double> data) {
         super(applicationTitle);
         JFreeChart lineChart = ChartFactory.createScatterPlot(
                 chartTitle,
@@ -27,12 +27,12 @@ public class MedianTimePlotter extends ApplicationFrame {
         setContentPane(chartPanel);
     }
 
-    private XYSeriesCollection createDataset(Map<Double, Double> data) {
+    private XYSeriesCollection createDataset(Map<Integer, Double> data) {
         XYSeriesCollection dataset = new XYSeriesCollection();
 
         XYSeries series1 = new XYSeries(50);
 
-        for(Entry<Double, Double> entry : data.entrySet()) {
+        for(Entry<Integer, Double> entry : data.entrySet()) {
             series1.add(entry.getKey(), entry.getValue());
         }
         dataset.addSeries(series1);
@@ -40,13 +40,11 @@ public class MedianTimePlotter extends ApplicationFrame {
     }
 
     public static void main(String[] args) {
-        Map<Double, Double> data = new HashMap<>();
-        data.put(50.0, 50.0);
-        data.put(100.0, 60.0);
-        data.put(70.0, 70.0);
-        MedianTimePlotter chart = new MedianTimePlotter(
-                "Test",
-                "OUI", data);
+        Map<Integer, Double> data = new HashMap<>();
+        data.put(50, 50.0);
+        data.put(100, 60.0);
+        data.put(70, 70.0);
+        MedianTimePlotter chart = new MedianTimePlotter("TEST", "TESTChart", data);
 
         chart.pack();
         chart.setVisible(true);
