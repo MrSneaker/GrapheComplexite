@@ -3,6 +3,12 @@ package com.graphecomplexite.utils;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.List;
+import java.util.ArrayList;
+import java.util.Set;
+import java.util.HashSet;
+
+import org.javatuples.Pair;
 
 import org.jfree.chart.ChartFactory;
 import org.jfree.chart.ChartPanel;
@@ -13,37 +19,56 @@ import org.jfree.data.xy.XYSeries;
 import org.jfree.data.xy.XYSeriesCollection;
 
 public class MedianTimePlotter extends ApplicationFrame {
-    public MedianTimePlotter(String applicationTitle, String chartTitle, Map<Integer, Double> data) {
+    public MedianTimePlotter(String applicationTitle, String chartTitle, Map<Pair<Integer, Integer>, Double> data) {
         super(applicationTitle);
-        JFreeChart lineChart = ChartFactory.createScatterPlot(
+        JFreeChart scatterChart = ChartFactory.createScatterPlot(
                 chartTitle,
-                "Median Computational Time Cost", "Ration of clauses to variables",
+                "Number of Nodes", "Computational Time",
                 createDataset(data),
                 PlotOrientation.VERTICAL,
                 true, true, false);
 
-        ChartPanel chartPanel = new ChartPanel(lineChart);
+        ChartPanel chartPanel = new ChartPanel(scatterChart);
         chartPanel.setPreferredSize(new java.awt.Dimension(1000, 800));
+        chartPanel.setLocation(480, 270);
         setContentPane(chartPanel);
     }
 
-    private XYSeriesCollection createDataset(Map<Integer, Double> data) {
+    private XYSeriesCollection createDataset(Map<Pair<Integer, Integer>, Double> data) {
         XYSeriesCollection dataset = new XYSeriesCollection();
 
-        XYSeries series1 = new XYSeries(50);
+        List<XYSeries> series = new ArrayList<>();
+        Set<Integer> kValues = new HashSet<>();
 
-        for(Entry<Integer, Double> entry : data.entrySet()) {
-            series1.add(entry.getKey(), entry.getValue());
+        for(Pair<Integer, Integer> key : data.keySet()) {
+            kValues.add(key.getValue1());
         }
-        dataset.addSeries(series1);
+
+        for(Integer kVal : kValues) {
+            series.add(new XYSeries(kVal));
+        }
+
+
+        for(Entry<Pair<Integer, Integer>, Double> entry : data.entrySet()) {
+            for(XYSeries serie : series) {
+                if(serie.getKey().equals(entry.getKey().getValue1())) {
+                    serie.add(entry.getKey().getValue0(), entry.getValue());
+                    break;
+                }
+            }
+        }
+
+        for(XYSeries serie : series) {
+            dataset.addSeries(serie);
+        }
         return dataset;
     }
 
     public static void main(String[] args) {
-        Map<Integer, Double> data = new HashMap<>();
-        data.put(50, 50.0);
-        data.put(100, 60.0);
-        data.put(70, 70.0);
+        Map<Pair<Integer, Integer>, Double> data = new HashMap<>();
+        data.put(new Pair<Integer, Integer>(10, 5), 50.0);
+        data.put(new Pair<Integer, Integer>(1, 5), 60.0);
+        data.put(new Pair<Integer, Integer>(1, 7), 70.0);
         MedianTimePlotter chart = new MedianTimePlotter("TEST", "TESTChart", data);
 
         chart.pack();

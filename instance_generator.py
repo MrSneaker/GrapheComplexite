@@ -33,38 +33,48 @@ def create_fzn(model_file, data_file, output_file):
         print(f"Erreur lors de la création du fichier FZN : {e}")
         
 
-def generate_graph_dataset(num_graphs, n_range, k, output_dir):
+def generate_graph_dataset(n_range, k_range, output_dir):
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
     
-    for i in range(num_graphs):
-        n = random.randint(*n_range)
-        k = k
+    i = 0
+    for k in k_range:
+        for n in n_range:
 
-        output_file = os.path.join(output_dir, f"graph_{i+1}.dzn")
-        
-        generate_graph_data(n, k, output_file)
-        
-        print(f"Graphe {i+1} généré : {output_file} (n={n}, k={k}")
+            output_file = os.path.join(output_dir, f"graph_{i+1}.dzn")
+            
+            generate_graph_data(n, k, output_file)
+            
+            print(f"Graphe {i+1} généré : {output_file} (n={n}, k={k}")
+            i += 1
+    return i
 
 
 def main():
     parser = argparse.ArgumentParser(description='Générer un dataset de graphes pour MiniZinc')
     parser.add_argument('--num_graphs', type=int, default=10, help='Nombre de graphes à générer')
-    parser.add_argument('--n_range', type=int, nargs=2, default=[5, 20], help='Intervalle de taille des graphes (n min, n max)')
-    parser.add_argument('--k', type=int, default=2, help='taille de la clique k')
+    parser.add_argument('--n_max', type=int, default=10, help='Intervalle de taille des graphes (n min, n max)')
+    parser.add_argument('--k_range', type=int, nargs=2, default=[2, 5], help='tailles possible des cliques k')
     parser.add_argument('--output_dir', type=str, default='graphs_dataset', help='Répertoire de sortie pour les fichiers de graphe (.dzn)')
     parser.add_argument('--model', type=str, required=True, help='Chemin vers le fichier modèle MiniZinc (.mzn)')
     parser.add_argument('--fzn_output_dir', type=str, default='fzn_outputs', help='Répertoire de sortie pour les fichiers FZN')
     
     args = parser.parse_args()
+    
+    step = int((args.n_max / args.num_graphs))
+    
+    print(step)
+    
+    n_range = [n for n in range(10, args.n_max, step)]
+    
+    k_range = [k for k in range(args.k_range[0], args.k_range[1] + 1, 1)]
 
-    generate_graph_dataset(args.num_graphs, args.n_range, args.k, args.output_dir)
+    nb_graph = generate_graph_dataset(n_range, k_range, args.output_dir)
     
     if not os.path.exists(args.fzn_output_dir):
         os.makedirs(args.fzn_output_dir)
     
-    for i in range(args.num_graphs):
+    for i in range(nb_graph):
         data_file = os.path.join(args.output_dir, f"graph_{i+1}.dzn")
         fzn_output_file = os.path.join(args.fzn_output_dir, f"output_{i+1}.fzn")
         create_fzn(args.model, data_file, fzn_output_file)

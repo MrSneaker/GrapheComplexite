@@ -3,6 +3,14 @@ package com.graphecomplexite.solver;
 import java.util.Arrays;
 import java.util.HashSet;
 import java.util.Set;
+import java.util.concurrent.Callable;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeoutException;
+import java.util.concurrent.TimeUnit;
+import java.time.Duration;
 
 import org.chocosolver.solver.Solver;
 import org.chocosolver.solver.variables.IntVar;
@@ -18,10 +26,42 @@ public class ChocoSolverFromFzn extends SolverFromFzn {
     @Override
     public void findSolution() {
         Solver solver = model.getSolver();
-
+        
+        Boolean hasTimedOut = false;
         Integer count = 0;
-        Set<String> uniqueCliques = new HashSet<>();
+        
+        final Duration timeout = Duration.ofMinutes(5);
+        ExecutorService executor = Executors.newSingleThreadExecutor();
 
+        final Future<Integer> handler = executor.submit(new Callable<>() {
+            @Override
+            public Integer call() throws Exception {
+                return processSolutions(solver);
+            }
+        });
+        
+        try {
+            handler.get(timeout.toMillis(), TimeUnit.MILLISECONDS);
+        } catch (TimeoutException e) {
+            hasTimedOut = true;
+            handler.cancel(true);
+        } catch (InterruptedException e) {
+            System.out.println("La recherche de solution a été interrompu : " + e.getMessage());
+        } catch (ExecutionException e) {
+            System.out.println("Exception durant l'execution de la tâche de recherche : " + e.getMessage());
+        }
+        
+        executor.shutdownNow();
+
+        if(hasTimedOut) {
+            System.out.println("La recherche prend trop de temps, timeout.");
+        }
+        System.out.println("Il y a " + count + " solution");
+    }
+
+    private int processSolutions(Solver solver) {
+        Set<String> uniqueCliques = new HashSet<>();
+        int count = 0;
         while(solver.solve()) {
             StringBuilder clique = new StringBuilder();
             for (IntVar var : model.retrieveIntVars(true)) {
@@ -42,6 +82,7 @@ public class ChocoSolverFromFzn extends SolverFromFzn {
             }
         }
 
-        System.out.println("Il y a " + count + " solution");
+        return count;
+
     }
 }

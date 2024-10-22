@@ -10,6 +10,8 @@ import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import org.javatuples.Pair;
+
 import com.graphecomplexite.solver.ChocoSolverFromFzn;
 import com.graphecomplexite.utils.MedianTimePlotter;
 
@@ -23,40 +25,58 @@ public class Benchmarker {
         if (dataFile.exists() && dataFile.isFile()) {
             try (BufferedReader reader = new BufferedReader(new FileReader(dataFile))) {
                 String line;
-                // Regular expression to match "k = <number>;"
                 Pattern pattern = Pattern.compile("\\bn\\s*=\\s*(\\d+);");
 
                 while ((line = reader.readLine()) != null) {
                     Matcher matcher = pattern.matcher(line);
                     if (matcher.find()) {
-                        // If a match is found, return the integer value of k
                         return Integer.parseInt(matcher.group(1));
                     }
                 }
             } catch (IOException e) {
-                e.printStackTrace(); // Handle the exception
+                e.printStackTrace();
             }
         } else {
             System.out.println("Le fichier de données n'existe pas : " + dataFile.getAbsolutePath());
         }
-        return null; // Return null if 'k' is not found
+        return null;
     }
 
+    private static Integer extractKValue(File dataFile) {
+        if (dataFile.exists() && dataFile.isFile()) {
+            try (BufferedReader reader = new BufferedReader(new FileReader(dataFile))) {
+                String line;
+                Pattern pattern = Pattern.compile("\\bk\\s*=\\s*(\\d+);");
+
+                while ((line = reader.readLine()) != null) {
+                    Matcher matcher = pattern.matcher(line);
+                    if (matcher.find()) {
+                        return Integer.parseInt(matcher.group(1));
+                    }
+                }
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        } else {
+            System.out.println("Le fichier de données n'existe pas : " + dataFile.getAbsolutePath());
+        }
+        return null;
+    }
+
+
     private static Integer extractNumberFromFileName(String fznFileName) {
-        // Regular expression to match the number before the file extension (e.g., "output_8.fzn" -> 8)
         Pattern pattern = Pattern.compile("_(\\d+)\\.fzn$");
         Matcher matcher = pattern.matcher(fznFileName);
     
         if (matcher.find()) {
-            // Return the number as an integer
             return Integer.parseInt(matcher.group(1));
         }
         
-        return null; // Return null if no number is found
+        return null;
     }
 
     public void solveMultipleModels() {
-        Map<String, Integer> modelsPathWithN = new HashMap<>();
+        Map<String, Pair<Integer, Integer>> modelsPathWithN = new HashMap<>();
 
         File modelDirectory = new File(System.getProperty("user.dir") + "/kclique/data/flatzinc_instance/");
         File dataDirectory = new File(System.getProperty("user.dir") + "/kclique/data/graph_data/");
@@ -70,17 +90,14 @@ public class Benchmarker {
 
             if (fznFiles != null) {
                 for (String fznFile : fznFiles) {
-                    // Get the base file name without extension
                     Integer numModel = extractNumberFromFileName(fznFile);
 
-                    // Construct the corresponding data file path
                     File dataFile = new File(dataDirectory, "graph_" + numModel + ".dzn");
 
-                    // Parse the data file to extract the value of 'k'
                     Integer nValue = extractNValue(dataFile);
+                    Integer kValue = extractKValue(dataFile);
                     if (nValue != null) {
-                        // Store the path of the .fzn file and the value of k in the map
-                        modelsPathWithN.put(new File(modelDirectory, fznFile).getAbsolutePath(), nValue);
+                        modelsPathWithN.put(new File(modelDirectory, fznFile).getAbsolutePath(), new Pair<Integer,Integer>(nValue, kValue));
                     } else {
                         System.out.println("No valid 'n' value found for: " + dataFile.getAbsolutePath());
                     }
@@ -91,9 +108,9 @@ public class Benchmarker {
             return;
         }
 
-        Map<Integer, Double> executionTimes = new HashMap<>();
+        Map<Pair<Integer, Integer>, Double> executionTimes = new HashMap<>();
 
-        for(Map.Entry<String, Integer> entry : modelsPathWithN.entrySet()) {
+        for(Map.Entry<String, Pair<Integer, Integer>> entry : modelsPathWithN.entrySet()) {
             System.out.println();
             System.out.println("Solving " +  entry.getKey().split("/")[entry.getKey().split("/").length - 1] + " ...");
 
@@ -110,7 +127,7 @@ public class Benchmarker {
         }
 
         System.out.println(executionTimes);
-        MedianTimePlotter chart = new MedianTimePlotter("Execution Times", "Time vs Clause-to-Variable Ratio", executionTimes);
+        MedianTimePlotter chart = new MedianTimePlotter("Execution Times", "Time vs Number of Nodes", executionTimes);
         chart.pack();
         chart.setVisible(true);
     }
