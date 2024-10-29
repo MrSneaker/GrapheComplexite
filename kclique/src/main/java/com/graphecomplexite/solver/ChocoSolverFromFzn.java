@@ -41,7 +41,7 @@ public class ChocoSolverFromFzn extends SolverFromFzn {
         });
         
         try {
-            handler.get(timeout.toMillis(), TimeUnit.MILLISECONDS);
+            count = handler.get(timeout.toMillis(), TimeUnit.MILLISECONDS);
         } catch (TimeoutException e) {
             hasTimedOut = true;
             handler.cancel(true);
@@ -55,8 +55,9 @@ public class ChocoSolverFromFzn extends SolverFromFzn {
 
         if(hasTimedOut) {
             System.out.println("La recherche prend trop de temps, timeout.");
+        } else {
+            System.out.println("Il y a " + count + " solution");
         }
-        System.out.println("Il y a " + count + " solution");
     }
 
     private int processSolutions(Solver solver) {
