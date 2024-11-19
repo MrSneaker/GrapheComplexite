@@ -15,21 +15,19 @@ import java.time.Duration;
 import org.chocosolver.solver.Solver;
 import org.chocosolver.solver.variables.IntVar;
 
-
 public class ChocoSolverFromFzn extends SolverFromFzn {
 
-
-    public ChocoSolverFromFzn(String pathToFzn) {
-        super(pathToFzn);
+    public ChocoSolverFromFzn(String pathToFzn, boolean oneSolutionMode) {
+        super(pathToFzn, oneSolutionMode);
     }
 
     @Override
     public void findSolution() {
         Solver solver = model.getSolver();
-        
+
         Boolean hasTimedOut = false;
         Integer count = 0;
-        
+
         final Duration timeout = Duration.ofMinutes(10);
         ExecutorService executor = Executors.newSingleThreadExecutor();
 
@@ -39,7 +37,7 @@ public class ChocoSolverFromFzn extends SolverFromFzn {
                 return processSolutions(solver);
             }
         });
-        
+
         try {
             count = handler.get(timeout.toMillis(), TimeUnit.MILLISECONDS);
         } catch (TimeoutException e) {
@@ -50,12 +48,12 @@ public class ChocoSolverFromFzn extends SolverFromFzn {
         } catch (ExecutionException e) {
             System.out.println("Exception durant l'execution de la tâche de recherche : " + e.getMessage());
         }
-        
+
         executor.shutdownNow();
 
-        if(hasTimedOut) {
+        if (hasTimedOut) {
             System.out.println("La recherche prend trop de temps, timeout.");
-        } else {
+        } else if (!this.oneSolutionMode) {
             System.out.println("Il y a " + count + " solution");
         }
     }
@@ -63,10 +61,10 @@ public class ChocoSolverFromFzn extends SolverFromFzn {
     private int processSolutions(Solver solver) {
         Set<String> uniqueCliques = new HashSet<>();
         int count = 0;
-        while(solver.solve()) {
+        while (solver.solve()) {
             StringBuilder clique = new StringBuilder();
             for (IntVar var : model.retrieveIntVars(true)) {
-                if(var.getName().contains("X_INTRODUCED")) {
+                if (var.getName().contains("X_INTRODUCED")) {
                     clique.append(var.getValue()).append(",");
                 }
             }
@@ -76,8 +74,11 @@ public class ChocoSolverFromFzn extends SolverFromFzn {
             String sortedClique = String.join(",", nodes);
 
             if (uniqueCliques.add(sortedClique)) {
-                if(count == 0) {
+                if (count == 0) {
                     System.out.println("Une première solution a été trouvée : " + sortedClique);
+                    if (this.oneSolutionMode) {
+                        break;
+                    }
                 }
                 count++;
             }

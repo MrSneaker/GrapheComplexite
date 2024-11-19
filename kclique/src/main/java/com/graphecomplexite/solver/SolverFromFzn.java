@@ -6,9 +6,11 @@ import org.chocosolver.solver.Model;
 public abstract class SolverFromFzn {
     private String pathToFzn;
     protected Model model;
+    protected boolean oneSolutionMode;
 
-    public SolverFromFzn(String pathToFzn) {
+    public SolverFromFzn(String pathToFzn, boolean oneSolutionMode) {
         this.pathToFzn = pathToFzn;
+        this.oneSolutionMode = oneSolutionMode;
         this.model = loadFznModel();
     }
 

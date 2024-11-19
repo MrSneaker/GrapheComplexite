@@ -114,7 +114,7 @@ public class Benchmarker {
             System.out.println();
             System.out.println("Solving " +  entry.getKey().split("/")[entry.getKey().split("/").length - 1] + " ...");
 
-            ChocoSolverFromFzn solver = new ChocoSolverFromFzn(entry.getKey());
+            ChocoSolverFromFzn solver = new ChocoSolverFromFzn(entry.getKey(), false);
             long startTime = System.currentTimeMillis();
             solver.findSolution();
             long endTime = System.currentTimeMillis();
