@@ -30,7 +30,7 @@ public class ChocoSolverFromFzn extends SolverFromFzn {
         Boolean hasTimedOut = false;
         Integer count = 0;
         
-        final Duration timeout = Duration.ofMinutes(5);
+        final Duration timeout = Duration.ofMinutes(10);
         ExecutorService executor = Executors.newSingleThreadExecutor();
 
         final Future<Integer> handler = executor.submit(new Callable<>() {
