@@ -13,6 +13,9 @@ import java.util.concurrent.TimeUnit;
 import java.time.Duration;
 
 import org.chocosolver.solver.Solver;
+import org.chocosolver.solver.search.strategy.Search;
+import org.chocosolver.solver.search.strategy.selectors.values.IntDomainMin;
+import org.chocosolver.solver.search.strategy.selectors.variables.DomOverWDeg;
 import org.chocosolver.solver.variables.IntVar;
 
 public class ChocoSolverFromFzn extends SolverFromFzn {
@@ -22,8 +25,18 @@ public class ChocoSolverFromFzn extends SolverFromFzn {
     }
 
     @Override
-    public void findSolution() {
+    public void findSolution(boolean optimized) {
         Solver solver = model.getSolver();
+
+    if(optimized) {
+        solver.setSearch(
+            Search.intVarSearch(
+                new DomOverWDeg<IntVar>(model.retrieveIntVars(true), 0),
+                new IntDomainMin(),
+                model.retrieveIntVars(true)
+            )
+        );
+    }
 
         Boolean hasTimedOut = false;
         Integer count = 0;

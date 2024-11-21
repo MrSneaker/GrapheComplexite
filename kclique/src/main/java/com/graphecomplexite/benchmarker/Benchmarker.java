@@ -116,7 +116,7 @@ public class Benchmarker {
 
             ChocoSolverFromFzn solver = new ChocoSolverFromFzn(entry.getKey(), false);
             long startTime = System.currentTimeMillis();
-            solver.findSolution();
+            solver.findSolution(false);
             long endTime = System.currentTimeMillis();
             
             double executionTime = (endTime - startTime) / 1000.0;

@@ -31,7 +31,7 @@ public abstract class SolverFromFzn {
         return model;
     }
 
-    public void findSolution() {
+    public void findSolution(boolean optimized) {
         return;
     }
 
