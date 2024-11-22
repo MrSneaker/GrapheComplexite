@@ -1,3 +1,3 @@
 output ["clique_nodes = ",showDzn(clique_nodes),";\n"];
-int: k = 34;
+int: k = 33;
 array [1..k] of int: clique_nodes;

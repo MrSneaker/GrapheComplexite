@@ -13,7 +13,9 @@ import java.util.regex.Pattern;
 import org.javatuples.Pair;
 
 import com.graphecomplexite.solver.ChocoSolverFromFzn;
-import com.graphecomplexite.utils.MedianTimePlotter;
+import com.graphecomplexite.solver.GloutonSolverFromFzn;
+import com.graphecomplexite.utils.MultiInstancePlotter;
+import com.graphecomplexite.utils.SolverComparatorPlotter;
 
 public class Benchmarker {
 
@@ -63,15 +65,14 @@ public class Benchmarker {
         return null;
     }
 
-
     private static Integer extractNumberFromFileName(String fznFileName) {
         Pattern pattern = Pattern.compile("_(\\d+)\\.fzn$");
         Matcher matcher = pattern.matcher(fznFileName);
-    
+
         if (matcher.find()) {
             return Integer.parseInt(matcher.group(1));
         }
-        
+
         return null;
     }
 
@@ -97,7 +98,8 @@ public class Benchmarker {
                     Integer nValue = extractNValue(dataFile);
                     Integer kValue = extractKValue(dataFile);
                     if (nValue != null) {
-                        modelsPathWithN.put(new File(modelDirectory, fznFile).getAbsolutePath(), new Pair<Integer,Integer>(nValue, kValue));
+                        modelsPathWithN.put(new File(modelDirectory, fznFile).getAbsolutePath(),
+                                new Pair<Integer, Integer>(nValue, kValue));
                     } else {
                         System.out.println("No valid 'n' value found for: " + dataFile.getAbsolutePath());
                     }
@@ -110,25 +112,77 @@ public class Benchmarker {
 
         Map<Pair<Integer, Integer>, Double> executionTimes = new HashMap<>();
 
-        for(Map.Entry<String, Pair<Integer, Integer>> entry : modelsPathWithN.entrySet()) {
+        for (Map.Entry<String, Pair<Integer, Integer>> entry : modelsPathWithN.entrySet()) {
             System.out.println();
-            System.out.println("Solving " +  entry.getKey().split("/")[entry.getKey().split("/").length - 1] + " ...");
+            System.out.println("Solving " + entry.getKey().split("/")[entry.getKey().split("/").length - 1] + " ...");
 
             ChocoSolverFromFzn solver = new ChocoSolverFromFzn(entry.getKey(), false);
             long startTime = System.currentTimeMillis();
-            solver.findSolution(false);
+            solver.findSolution(false, true);
             long endTime = System.currentTimeMillis();
-            
+
             double executionTime = (endTime - startTime) / 1000.0;
-            
 
             executionTimes.put(entry.getValue(), executionTime);
             System.out.println();
         }
 
         System.out.println(executionTimes);
-        MedianTimePlotter chart = new MedianTimePlotter("Execution Times", "Time vs Number of Nodes", executionTimes);
+        MultiInstancePlotter chart = new MultiInstancePlotter("Execution Times", "Time vs Number of Nodes",
+                executionTimes);
         chart.pack();
         chart.setVisible(true);
+    }
+
+    public void compareSolver(String modelFznPath) {
+        ChocoSolverFromFzn chocoSolver = new ChocoSolverFromFzn(modelFznPath, false);
+        ChocoSolverFromFzn chocoSolverOpti = new ChocoSolverFromFzn(modelFznPath, false);
+
+        long startCNo = System.currentTimeMillis();
+        chocoSolver.findSolution(false, false);
+        long stopCNo = System.currentTimeMillis();
+
+        long startCo = System.currentTimeMillis();
+        chocoSolverOpti.findSolution(true, false);
+        long stopCo = System.currentTimeMillis();
+
+        Map<String, Double> data = Map.of(
+                "Solver - Stratégie par défaut", (double) (stopCNo - startCNo) / 1000.0,
+                "Solver - Stratégie optimisée", (double) (stopCo - startCo) / 1000.0);
+
+        SolverComparatorPlotter plot = new SolverComparatorPlotter("Complete solution comparaison",
+                "Complete solution comparaison", data);
+
+        plot.pack();
+        plot.setVisible(true);
+    }
+
+    public void compareSolverOnOneClique(String modelFznPath, String dataDznPath) {
+        ChocoSolverFromFzn chocoSolver = new ChocoSolverFromFzn(modelFznPath, true);
+        ChocoSolverFromFzn chocoSolverOpti = new ChocoSolverFromFzn(modelFznPath, true);
+        GloutonSolverFromFzn glouton = new GloutonSolverFromFzn(dataDznPath);
+
+        long startCNo = System.currentTimeMillis();
+        chocoSolver.findSolution(false, false);
+        long stopCNo = System.currentTimeMillis();
+
+        long startCo = System.currentTimeMillis();
+        chocoSolverOpti.findSolution(true, false);
+        long stopCo = System.currentTimeMillis();
+
+        long startG = System.currentTimeMillis();
+        glouton.findSolution();
+        long stopG = System.currentTimeMillis();
+
+        Map<String, Double> data = Map.of(
+                "Solver - Stratégie par défaut", (double) (stopCNo - startCNo) / 1000.0,
+                "Solver - Stratégie optimisée", (double) (stopCo - startCo) / 1000.0,
+                "Solver glouton", (double) (stopG - startG) / 1000.0);
+
+        SolverComparatorPlotter plot = new SolverComparatorPlotter("All solution comparaison",
+                "Comparaison de toutes les solutions pour la résolution de k-clique", data);
+
+        plot.pack();
+        plot.setVisible(true);
     }
 }
