@@ -15,7 +15,7 @@ import java.util.Map;
 
 public class SolverComparatorPlotter extends ApplicationFrame {
 
-    public SolverComparatorPlotter(String applicationTitle, String chartTitle, Map<String, Double> data) {
+    public SolverComparatorPlotter(String applicationTitle, String chartTitle, Map<String, Map<String, Double>> data) {
         super(applicationTitle);
         
         DefaultCategoryDataset dataset = createDataset(data);
@@ -26,7 +26,7 @@ public class SolverComparatorPlotter extends ApplicationFrame {
                 "Temps (secondes)",              
                 dataset,                  
                 PlotOrientation.VERTICAL,
-                false,                      
+                true,                      // Display legend for series (clique sizes)
                 true,                     
                 false
         );
@@ -38,11 +38,13 @@ public class SolverComparatorPlotter extends ApplicationFrame {
         setContentPane(chartPanel);
     }
 
-    private DefaultCategoryDataset createDataset(Map<String, Double> data) {
+    private DefaultCategoryDataset createDataset(Map<String, Map<String, Double>> data) {
         DefaultCategoryDataset dataset = new DefaultCategoryDataset();
         
-        data.forEach((solverConfig, solvingTime) -> 
-            dataset.addValue(solvingTime, "Temps de solving", solverConfig)
+        data.forEach((cliqueSize, solversData) -> 
+            solversData.forEach((solverConfig, solvingTime) -> 
+                dataset.addValue(solvingTime, cliqueSize, solverConfig)
+            )
         );
         
         return dataset;
@@ -53,9 +55,7 @@ public class SolverComparatorPlotter extends ApplicationFrame {
         BarRenderer renderer = new CustomBarRenderer(dataset);
         
         renderer.setDrawBarOutline(false);
-        
         renderer.setBarPainter(new StandardBarPainter());
-        
         plot.setRenderer(renderer);
     }
 
@@ -63,12 +63,12 @@ public class SolverComparatorPlotter extends ApplicationFrame {
         private final Color[] colors;
 
         public CustomBarRenderer(DefaultCategoryDataset dataset) {
-            this.colors = generateColors(dataset.getColumnCount());
+            this.colors = generateColors(dataset.getRowCount());
         }
 
         @Override
         public Paint getItemPaint(int row, int column) {
-            return colors[column];
+            return colors[row]; // Color based on series (clique size)
         }
 
         private Color[] generateColors(int numberOfColors) {
@@ -81,16 +81,30 @@ public class SolverComparatorPlotter extends ApplicationFrame {
     }
 
     public static void main(String[] args) {
-        Map<String, Double> exampleData = Map.of(
-                "Solver A - Param1", 120.5,
-                "Solver B - Param1", 150.2,
-                "Solver A - Param2", 110.3,
-                "Solver B - Param2", 140.8
+        Map<String, Map<String, Double>> exampleData = Map.of(
+                "Clique Size 3", Map.of(
+                        "Solver A - Param1", 120.5,
+                        "Solver B - Param1", 150.2,
+                        "Solver A - Param2", 110.3,
+                        "Solver B - Param2", 140.8
+                ),
+                "Clique Size 5", Map.of(
+                        "Solver A - Param1", 200.7,
+                        "Solver B - Param1", 250.4,
+                        "Solver A - Param2", 180.9,
+                        "Solver B - Param2", 230.1
+                ),
+                "Clique Size 7", Map.of(
+                        "Solver A - Param1", 320.6,
+                        "Solver B - Param1", 350.8,
+                        "Solver A - Param2", 310.2,
+                        "Solver B - Param2", 340.0
+                )
         );
 
         SolverComparatorPlotter chart = new SolverComparatorPlotter(
                 "Comparaison des Solveurs", 
-                "Performance des Solveurs", 
+                "Performance des Solveurs selon la Taille de la Clique", 
                 exampleData
         );
 
