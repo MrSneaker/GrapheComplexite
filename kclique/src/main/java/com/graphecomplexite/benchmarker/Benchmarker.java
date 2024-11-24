@@ -16,6 +16,7 @@ import org.javatuples.Pair;
 
 import com.graphecomplexite.solver.ChocoSolverFromFzn;
 import com.graphecomplexite.solver.GloutonSolverFromFzn;
+import com.graphecomplexite.utils.GloutonSolverPlotter;
 import com.graphecomplexite.utils.MultiInstancePlotter;
 import com.graphecomplexite.utils.SolverComparatorPlotter;
 
@@ -191,9 +192,9 @@ public class Benchmarker {
             chocoSolverOpti.findSolution(true, false);
             long stopCo = System.currentTimeMillis();
 
-            Map<String, Double> solverTimes = Map.of(
-                    "Solver - Stratégie par défaut", (double) (stopCNo - startCNo) / 1000.0,
-                    "Solver - Stratégie optimisée", (double) (stopCo - startCo) / 1000.0);
+            Map<String, Double> solverTimes = Map.of("Solver - Stratégie par défaut",
+                    (double) (stopCNo - startCNo) / 1000.0, "Solver - Stratégie optimisée",
+                    (double) (stopCo - startCo) / 1000.0);
             data.put("n = " + entry.getValue().getValue0() + ", k = " + entry.getValue().getValue1(), solverTimes);
         }
 
@@ -204,7 +205,7 @@ public class Benchmarker {
         plot.setVisible(true);
     }
 
-    public void compareSolverOnKClique(int maxK) {
+    public void compareSolverOnKClique(int maxK, boolean onlyGloutonSolver) {
 
         File modelDirectory = new File(System.getProperty("user.dir") + "/kclique/data/dimacs_fzn_instance");
         File dataDirectory = new File(System.getProperty("user.dir") + "/kclique/data/dimacs_dzn_instance");
@@ -215,27 +216,37 @@ public class Benchmarker {
         Map<String, Map<String, Double>> data = new HashMap<>();
 
         for (Map.Entry<String, Pair<Integer, Integer>> entry : modelsPathWithN.entrySet()) {
-            ChocoSolverFromFzn chocoSolver = new ChocoSolverFromFzn(entry.getKey(), true);
-            ChocoSolverFromFzn chocoSolverOpti = new ChocoSolverFromFzn(entry.getKey(), true);
             String dznPath = entry.getKey().replace("fzn", "dzn");
             GloutonSolverFromFzn glouton = new GloutonSolverFromFzn(dznPath);
-
-            long startCNo = System.currentTimeMillis();
-            chocoSolver.findSolution(false, false);
-            long stopCNo = System.currentTimeMillis();
-
-            long startCo = System.currentTimeMillis();
-            chocoSolverOpti.findSolution(true, false);
-            long stopCo = System.currentTimeMillis();
 
             long startG = System.currentTimeMillis();
             glouton.findSolution();
             long stopG = System.currentTimeMillis();
 
-            Map<String, Double> solverTimes = Map.of(
-                    "Solver - Stratégie par défaut", (double) (stopCNo - startCNo) / 1000.0,
-                    "Solver - Stratégie optimisée", (double) (stopCo - startCo) / 1000.0,
-                    "Solver glouton", (double) (stopG - startG) / 1000.0);
+            long startG2 = System.currentTimeMillis();
+            glouton.findSolutionAlternative();
+            long stopG2 = System.currentTimeMillis();
+
+            Map<String, Double> solverTimes = new HashMap<>();
+
+            if (!onlyGloutonSolver) {
+                ChocoSolverFromFzn chocoSolver = new ChocoSolverFromFzn(entry.getKey(), true);
+                ChocoSolverFromFzn chocoSolverOpti = new ChocoSolverFromFzn(entry.getKey(), true);
+                long startCNo = System.currentTimeMillis();
+                chocoSolver.findSolution(false, false);
+                long stopCNo = System.currentTimeMillis();
+
+                long startCo = System.currentTimeMillis();
+                chocoSolverOpti.findSolution(true, false);
+                long stopCo = System.currentTimeMillis();
+                solverTimes = Map.of("Solver - Stratégie par défaut", (double) (stopCNo - startCNo) / 1000.0,
+                        "Solver - Stratégie optimisée", (double) (stopCo - startCo) / 1000.0,
+                        "Solver glouton Méthode 1", (double) (stopG - startG) / 1000.0, "Solver glouton Méthode 2",
+                        (double) (stopG2 - startG2) / 1000.0);
+            } else {
+                solverTimes = Map.of("Solver glouton Méthode 1", (double) (stopG - startG) / 1000.0,
+                        "Solver glouton Méthode 2", (double) (stopG2 - startG2) / 1000.0);
+            }
 
             data.put("n = " + entry.getValue().getValue0() + ", k = " + entry.getValue().getValue1(), solverTimes);
         }
@@ -246,4 +257,32 @@ public class Benchmarker {
         plot.pack();
         plot.setVisible(true);
     }
+
+    public void CompareNbTryGlouton(int maxK) {
+        File modelDirectory = new File(System.getProperty("user.dir") + "/kclique/data/dimacs_fzn_instance");
+        File dataDirectory = new File(System.getProperty("user.dir") + "/kclique/data/dimacs_dzn_instance");
+
+        Map<String, Pair<Integer, Integer>> modelsPathWithN = foundModelInstances(modelDirectory, dataDirectory, true,
+                maxK);
+
+        Map<String, Map<String, Integer>> data = new HashMap<>();
+
+        for (Map.Entry<String, Pair<Integer, Integer>> entry : modelsPathWithN.entrySet()) {
+            String dznPath = entry.getKey().replace("fzn", "dzn");
+            GloutonSolverFromFzn glouton = new GloutonSolverFromFzn(dznPath);
+
+            int nbTry1 = glouton.findSolution();
+
+            int nbTry2 = glouton.findSolutionAlternative();
+
+            Map<String, Integer> solverTimes = Map.of("Méthode 1", nbTry1, "Méthode 2", nbTry2);
+
+            data.put("n = " + entry.getValue().getValue0() + ", k = " + entry.getValue().getValue1(), solverTimes);
+        }
+
+        GloutonSolverPlotter plotter = new GloutonSolverPlotter("Comparaison des solutions gloutonnes", data);
+        plotter.pack();
+        plotter.setVisible(true);
+    }
+
 }

@@ -52,18 +52,21 @@ public class GloutonSolverFromFzn {
     private int getNodeDegree(int node) {
         int degree = 0;
         for (boolean connected : edges[node]) {
-            if (connected) degree++;
+            if (connected)
+                degree++;
         }
         return degree;
     }
 
-    public void findSolution() {
+    public int findSolution() {
         try {
             parseDzn();
         } catch (IOException e) {
             System.err.println("Erreur lors du parsing du fichier : " + e.getMessage());
-            return;
+            return -1;
         }
+
+        int nbTry = 0;
 
         List<Integer> clique = new ArrayList<>();
 
@@ -74,7 +77,9 @@ public class GloutonSolverFromFzn {
             }
             nodes.sort((a, b) -> Integer.compare(getNodeDegree(b), getNodeDegree(a)));
 
-            Collections.shuffle(nodes);
+            if (m > 0) {
+                Collections.shuffle(nodes);
+            }
 
             for (int i : nodes) {
                 if (clique.size() < k) {
@@ -92,15 +97,72 @@ public class GloutonSolverFromFzn {
             }
 
             if (clique.size() == k) {
-                System.out.print("Essaie " + (m + 1) + " : Clique trouvée de taille " + k + " : " + clique + "\r");
+                System.out.print(
+                        "Méthode 1 - Essaie " + (m + 1) + " : Clique trouvée de taille " + k + " : " + clique + "\r");
+                nbTry = m + 1;
                 break;
             } else {
-                System.out.print("Essaie " + (m + 1) + " : Impossible de trouver une clique de taille " + k
+                System.out.print("Méthode 1 - Essaie " + (m + 1) + " : Impossible de trouver une clique de taille " + k
                         + " dans le graphe.\r");
+                nbTry = m + 1;
+                
             }
 
         }
         System.out.println();
+        return nbTry;
 
+    }
+
+    public int findSolutionAlternative() {
+        try {
+            parseDzn();
+        } catch (IOException e) {
+            System.err.println("Erreur lors du parsing du fichier : " + e.getMessage());
+            return -1;
+        }
+
+        int nbTry = 0;
+
+        List<Integer> clique = new ArrayList<>();
+
+        for (int m = 0; m < 10000; ++m) {
+            List<Integer> nodes = new ArrayList<>();
+            for (int i = 0; i < n; i++) {
+                nodes.add(i);
+            }
+            Collections.shuffle(nodes);
+
+            clique.clear();
+
+            for (int i : nodes) {
+                boolean canAdd = true;
+                for (int node : clique) {
+                    if (!edges[node][i]) {
+                        canAdd = false;
+                        break;
+                    }
+                }
+                if (canAdd) {
+                    clique.add(i);
+                    if (clique.size() == k) {
+                        break;
+                    }
+                }
+            }
+
+            if (clique.size() == k) {
+                System.out.print(
+                        "Méthode 2 - Essaie " + (m + 1) + " : Clique trouvée de taille " + k + " : " + clique + "\r");
+                nbTry = m + 1;
+                break;
+            } else {
+                System.out.print("Méthode 2 - Essaie " + (m + 1) + " : Impossible de trouver une clique de taille " + k
+                        + " dans le graphe.\r");
+                nbTry = m + 1;
+            }
+        }
+        System.out.println();
+        return nbTry;
     }
 }
