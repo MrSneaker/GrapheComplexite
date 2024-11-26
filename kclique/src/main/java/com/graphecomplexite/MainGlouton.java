@@ -7,6 +7,7 @@ public class MainGlouton {
 
         Benchmarker b = new Benchmarker();
         b.CompareNbTryGlouton(44);
+        b.compareSolverOnKClique(44, true, false);
 
     }
 }

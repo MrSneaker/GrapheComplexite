@@ -1,26 +1,30 @@
 package com.graphecomplexite.solver;
 
-import java.util.*;
-import java.io.*;
 import java.time.Duration;
-import java.util.concurrent.*;
+import java.util.Arrays;
+import java.util.Comparator;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Map;
+import java.util.Set;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 
 import org.chocosolver.solver.Solver;
+import org.chocosolver.solver.exception.ContradictionException;
+import org.chocosolver.solver.search.loop.monitors.IMonitorContradiction;
 import org.chocosolver.solver.search.strategy.Search;
-import org.chocosolver.solver.search.strategy.selectors.values.IntDomainMin;
+import org.chocosolver.solver.search.strategy.selectors.values.IntDomainMax;
 import org.chocosolver.solver.search.strategy.selectors.variables.VariableSelector;
 import org.chocosolver.solver.variables.IntVar;
 
 public class ChocoSolverFromFzn extends SolverFromFzn {
-    private class NodeDegree {
-        final int index;
-        final int degree;
 
-        NodeDegree(int index, int degree) {
-            this.index = index;
-            this.degree = degree;
-        }
-    }
+    private Map<IntVar, Integer> failureMap = new HashMap<>();
 
     public ChocoSolverFromFzn(String pathToFzn, boolean oneSolutionMode, int n, int k) {
         super(pathToFzn, oneSolutionMode, n, k);
@@ -32,83 +36,61 @@ public class ChocoSolverFromFzn extends SolverFromFzn {
         if (optimized) {
             IntVar[] vars = model.retrieveIntVars(true);
 
-            Map<Integer, IntVar> varMap = new HashMap<>();
-            for (IntVar var : vars) {
-                String name = var.getName();
-                if (name.matches("val\\[\\d+\\]")) {
-                    int index = Integer.parseInt(name.replaceAll("\\D", ""));
-                    varMap.put(index, var);
-                }
-            }
-
-            List<NodeDegree> degrees = computeDegreesStreaming();
-            List<IntVar> sortedVarList = new ArrayList<>();
-
-            for (NodeDegree degree : degrees) {
-                IntVar sortedVar = varMap.get(degree.index);
-                if (sortedVar != null) {
-                    sortedVarList.add(sortedVar);
-                } else {
-                    System.err.println("Missing variable at index: " + degree.index);
-                }
-            }
-
-            for (IntVar var : vars) {
-                if (!sortedVarList.contains(var)) {
-                    sortedVarList.add(var); // Append missing variables
-                }
-            }
-
-            IntVar[] sortedVars = sortedVarList.toArray(new IntVar[0]);
+            setupFailureMonitor(solver);
 
             solver.setSearch(
                     Search.intVarSearch(
                             (VariableSelector<IntVar>) variable -> {
-                                for (IntVar sortedVar : sortedVars) {
-                                    if (!sortedVar.isInstantiated()) {
-                                        return sortedVar;
-                                    }
-                                }
-                                return null;
+                                return Arrays.stream(vars)
+                                        .filter(var -> !var.isInstantiated())
+                                        .max(Comparator.comparingInt(this::computeCustomPriority))
+                                        .orElse(null);
                             },
-                            new IntDomainMin(),
+                            new IntDomainMax(),
                             vars));
-
         }
 
         processSolutionsWithTimeout(solver, doTimeOut, optimized);
     }
 
-    private List<NodeDegree> computeDegreesStreaming() {
-        List<NodeDegree> degrees = new ArrayList<>();
-
-        try (BufferedReader reader = new BufferedReader(new FileReader(getPathToFzn()))) {
-            String line;
-
-            while ((line = reader.readLine()) != null) {
-                if (line.matches(".*array \\[.*\\] of bool: .* = \\[.*\\].*")) {
-                    String[] values = line.substring(line.indexOf('[') + 1, line.lastIndexOf(']')).split(",");
-
-                    for (int i = 0; i < getN(); i++) {
-                        int degree = 0;
-                        for (int j = 0; j < getN(); j++) {
-                            if (values[i * getN() + j].trim().equals("true")) {
-                                degree++;
-                            }
-                        }
-                        degrees.add(i, new NodeDegree(i, degree));
-                    }
-                    break;
+    private void setupFailureMonitor(Solver solver) {
+        solver.plugMonitor(new IMonitorContradiction() {
+            @Override
+            public void onContradiction(ContradictionException cex) {
+                IntVar var = (IntVar) cex.v;
+                if (var != null) {
+                    failureMap.put(var, failureMap.getOrDefault(var, 0) + 1);
                 }
             }
-        } catch (IOException e) {
-            System.err.println("Erreur lors de la lecture du fichier : " + e.getMessage());
-        }
+        });
+    }
 
-        // Trier par degré décroissant
-        degrees.sort((a, b) -> Integer.compare(b.degree, a.degree));
+    private int computeCustomPriority(IntVar var) {
+        return computeDynamicCentrality(var) + computeDynamicWeight(var);
+    }
 
-        return degrees;
+    private int computeDynamicWeight(IntVar var) {
+        int weight = 0;
+
+        int residualDegree = var.getNbProps();
+        weight += residualDegree;
+
+        int domainSize = var.getDomainSize();
+        weight += (domainSize > 0) ? (1000 / domainSize) : 1000;
+
+        Integer failCount = failureMap.getOrDefault(var, 0);
+        weight += failCount * 10;
+
+        return weight;
+    }
+
+    private int computeDynamicCentrality(IntVar var) {
+        int activeConstraints = var.getNbProps();
+
+        int domainSize = var.getDomainSize();
+        int domainFactor = (domainSize > 0) ? (1000 / domainSize) : 1000;
+
+        return activeConstraints + domainFactor;
     }
 
     private void processSolutionsWithTimeout(Solver solver, boolean doTimeOut, boolean optimized) {

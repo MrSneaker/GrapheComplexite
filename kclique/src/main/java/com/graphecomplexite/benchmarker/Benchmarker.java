@@ -215,7 +215,7 @@ public class Benchmarker {
         plot.setVisible(true);
     }
 
-    public void compareSolverOnKClique(int maxK, boolean onlyGloutonSolver) {
+    public void compareSolverOnKClique(int maxK, boolean onlyGloutonSolver, boolean onlyCompleteSolver) {
 
         File modelDirectory = new File(System.getProperty("user.dir") + "/kclique/data/dimacs_fzn_instance");
         File dataDirectory = new File(System.getProperty("user.dir") + "/kclique/data/dimacs_dzn_instance");
@@ -229,26 +229,26 @@ public class Benchmarker {
             String dznPath = entry.getKey().replace("fzn", "dzn");
             GloutonSolverFromFzn glouton = new GloutonSolverFromFzn(dznPath);
 
-            long startG = System.currentTimeMillis();
-            glouton.findSolution();
-            long stopG = System.currentTimeMillis();
-
-            long startG2 = System.currentTimeMillis();
-            glouton.findSolutionAlternative();
-            long stopG2 = System.currentTimeMillis();
-
             Map<String, Double> solverTimes = new HashMap<>();
+            int n = entry.getValue().getValue0();
+            int k = entry.getValue().getValue1();
 
-            if (!onlyGloutonSolver) {
-                int n = entry.getValue().getValue0();
-                int k = entry.getValue().getValue1();
+            if (!onlyGloutonSolver && !onlyCompleteSolver) {
+
+                long startG = System.currentTimeMillis();
+                glouton.findSolution();
+                long stopG = System.currentTimeMillis();
+    
+                long startG2 = System.currentTimeMillis();
+                glouton.findSolutionAlternative();
+                long stopG2 = System.currentTimeMillis();
             
                 ChocoSolverFromFzn chocoSolver = new ChocoSolverFromFzn(entry.getKey(), true, n, k);
                 ChocoSolverFromFzn chocoSolverOpti = new ChocoSolverFromFzn(entry.getKey(), true, n, k);
                 long startCNo = System.currentTimeMillis();
                 chocoSolver.findSolution(false, false);
                 long stopCNo = System.currentTimeMillis();
-
+    
                 long startCo = System.currentTimeMillis();
                 chocoSolverOpti.findSolution(true, false);
                 long stopCo = System.currentTimeMillis();
@@ -256,9 +256,30 @@ public class Benchmarker {
                         "Solver - Stratégie optimisée", (double) (stopCo - startCo) / 1000.0,
                         "Solver glouton Méthode 1", (double) (stopG - startG) / 1000.0, "Solver glouton Méthode 2",
                         (double) (stopG2 - startG2) / 1000.0);
-            } else {
-                solverTimes = Map.of("Solver glouton Méthode 1", (double) (stopG - startG) / 1000.0,
-                        "Solver glouton Méthode 2", (double) (stopG2 - startG2) / 1000.0);
+            } else if (onlyGloutonSolver){
+                long startG = System.currentTimeMillis();
+                int tries1 = glouton.findSolution();
+                long stopG = System.currentTimeMillis();
+    
+                long startG2 = System.currentTimeMillis();
+                int tries2 = glouton.findSolutionAlternative();
+                long stopG2 = System.currentTimeMillis();
+                if (tries1 < 10000 && tries2 < 10000) {
+                    solverTimes = Map.of("Solver glouton Méthode 1", (double) (stopG - startG) / 1000.0,
+                            "Solver glouton Méthode 2", (double) (stopG2 - startG2) / 1000.0);
+                }
+            } else if (onlyCompleteSolver) {
+                ChocoSolverFromFzn chocoSolver = new ChocoSolverFromFzn(entry.getKey(), true, n, k);
+                ChocoSolverFromFzn chocoSolverOpti = new ChocoSolverFromFzn(entry.getKey(), true, n, k);
+                long startCNo = System.currentTimeMillis();
+                chocoSolver.findSolution(false, false);
+                long stopCNo = System.currentTimeMillis();
+    
+                long startCo = System.currentTimeMillis();
+                chocoSolverOpti.findSolution(true, false);
+                long stopCo = System.currentTimeMillis();
+                solverTimes = Map.of("Solver - Stratégie par défaut", (double) (stopCNo - startCNo) / 1000.0,
+                "Solver - Stratégie optimisée", (double) (stopCo - startCo) / 1000.0);
             }
 
             data.put("n = " + entry.getValue().getValue0() + ", k = " + entry.getValue().getValue1(), solverTimes);
