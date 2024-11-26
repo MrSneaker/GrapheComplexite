@@ -16,7 +16,7 @@ import org.javatuples.Pair;
 
 import com.graphecomplexite.solver.ChocoSolverFromFzn;
 import com.graphecomplexite.solver.GloutonSolverFromFzn;
-import com.graphecomplexite.utils.GloutonSolverPlotter;
+import com.graphecomplexite.utils.GloutonSolverBarPlotter;
 import com.graphecomplexite.utils.MultiInstancePlotter;
 import com.graphecomplexite.utils.SolverComparatorPlotter;
 
@@ -152,8 +152,11 @@ public class Benchmarker {
         for (Map.Entry<String, Pair<Integer, Integer>> entry : modelsPathWithN.entrySet()) {
             System.out.println();
             System.out.println("Solving " + entry.getKey().split("/")[entry.getKey().split("/").length - 1] + " ...");
+            int n = entry.getValue().getValue0();
+            int k = entry.getValue().getValue1();
+            
 
-            ChocoSolverFromFzn solver = new ChocoSolverFromFzn(entry.getKey(), false);
+            ChocoSolverFromFzn solver = new ChocoSolverFromFzn(entry.getKey(), false, n, k);
             long startTime = System.currentTimeMillis();
             solver.findSolution(false, true);
             long endTime = System.currentTimeMillis();
@@ -181,16 +184,23 @@ public class Benchmarker {
         Map<String, Map<String, Double>> data = new HashMap<>();
 
         for (Map.Entry<String, Pair<Integer, Integer>> entry : modelsPathWithN.entrySet()) {
-            ChocoSolverFromFzn chocoSolver = new ChocoSolverFromFzn(entry.getKey(), false);
-            ChocoSolverFromFzn chocoSolverOpti = new ChocoSolverFromFzn(entry.getKey(), false);
+            int n = entry.getValue().getValue0();
+            int k = entry.getValue().getValue1();
+            
+            ChocoSolverFromFzn chocoSolver = new ChocoSolverFromFzn(entry.getKey(), false, n, k);
+            ChocoSolverFromFzn chocoSolverOpti = new ChocoSolverFromFzn(entry.getKey(), false, n, k);
 
             long startCNo = System.currentTimeMillis();
             chocoSolver.findSolution(false, false);
             long stopCNo = System.currentTimeMillis();
+            chocoSolver = null;
+            System.gc();
 
             long startCo = System.currentTimeMillis();
             chocoSolverOpti.findSolution(true, false);
+            chocoSolverOpti = null;
             long stopCo = System.currentTimeMillis();
+            System.gc();
 
             Map<String, Double> solverTimes = Map.of("Solver - Stratégie par défaut",
                     (double) (stopCNo - startCNo) / 1000.0, "Solver - Stratégie optimisée",
@@ -230,8 +240,11 @@ public class Benchmarker {
             Map<String, Double> solverTimes = new HashMap<>();
 
             if (!onlyGloutonSolver) {
-                ChocoSolverFromFzn chocoSolver = new ChocoSolverFromFzn(entry.getKey(), true);
-                ChocoSolverFromFzn chocoSolverOpti = new ChocoSolverFromFzn(entry.getKey(), true);
+                int n = entry.getValue().getValue0();
+                int k = entry.getValue().getValue1();
+            
+                ChocoSolverFromFzn chocoSolver = new ChocoSolverFromFzn(entry.getKey(), true, n, k);
+                ChocoSolverFromFzn chocoSolverOpti = new ChocoSolverFromFzn(entry.getKey(), true, n, k);
                 long startCNo = System.currentTimeMillis();
                 chocoSolver.findSolution(false, false);
                 long stopCNo = System.currentTimeMillis();
@@ -280,7 +293,7 @@ public class Benchmarker {
             data.put("n = " + entry.getValue().getValue0() + ", k = " + entry.getValue().getValue1(), solverTimes);
         }
 
-        GloutonSolverPlotter plotter = new GloutonSolverPlotter("Comparaison des solutions gloutonnes", data);
+        GloutonSolverBarPlotter plotter = new GloutonSolverBarPlotter("Comparaison des solutions gloutonnes", data);
         plotter.pack();
         plotter.setVisible(true);
     }

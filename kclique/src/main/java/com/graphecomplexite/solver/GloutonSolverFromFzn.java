@@ -71,6 +71,7 @@ public class GloutonSolverFromFzn {
         List<Integer> clique = new ArrayList<>();
 
         for (int m = 0; m < 10000; ++m) {
+            clique.clear();
             List<Integer> nodes = new ArrayList<>();
             for (int i = 0; i < n; i++) {
                 nodes.add(i);
@@ -127,6 +128,7 @@ public class GloutonSolverFromFzn {
         List<Integer> clique = new ArrayList<>();
 
         for (int m = 0; m < 10000; ++m) {
+            clique.clear();
             List<Integer> nodes = new ArrayList<>();
             for (int i = 0; i < n; i++) {
                 nodes.add(i);

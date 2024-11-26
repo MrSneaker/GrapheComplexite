@@ -1,87 +1,128 @@
 package com.graphecomplexite.solver;
 
-import java.util.Arrays;
-import java.util.HashSet;
-import java.util.Set;
-import java.util.concurrent.Callable;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.Future;
-import java.util.concurrent.TimeoutException;
-import java.util.concurrent.TimeUnit;
+import java.util.*;
+import java.io.*;
 import java.time.Duration;
+import java.util.concurrent.*;
 
 import org.chocosolver.solver.Solver;
 import org.chocosolver.solver.search.strategy.Search;
 import org.chocosolver.solver.search.strategy.selectors.values.IntDomainMin;
-import org.chocosolver.solver.search.strategy.selectors.variables.DomOverWDeg;
+import org.chocosolver.solver.search.strategy.selectors.variables.VariableSelector;
 import org.chocosolver.solver.variables.IntVar;
 
 public class ChocoSolverFromFzn extends SolverFromFzn {
+    private class NodeDegree {
+        final int index;
+        final int degree;
 
-    public ChocoSolverFromFzn(String pathToFzn, boolean oneSolutionMode) {
-        super(pathToFzn, oneSolutionMode);
+        NodeDegree(int index, int degree) {
+            this.index = index;
+            this.degree = degree;
+        }
+    }
+
+    public ChocoSolverFromFzn(String pathToFzn, boolean oneSolutionMode, int n, int k) {
+        super(pathToFzn, oneSolutionMode, n, k);
     }
 
     @Override
     public void findSolution(boolean optimized, boolean doTimeOut) {
         Solver solver = model.getSolver();
-
         if (optimized) {
-            /*
-             * EXPLIQUATION STRATÉGIE OPTI :
-             * Supposons un graphe de 6 nœuds où nous cherchons une 3-clique :
-             * 
-             * Variables :
-             * Chaque variable xi (booléenne) indique si le nœud i est dans la clique (xi =
-             * 1).
-             * 
-             * Contraintes :
-             * La somme des xi doit être exactement égale à 3 (cardinalité de la clique).
-             * Si xi = 1 et xj = 1, alors i et j doivent être connectés (selon la matrice
-             * d'adjacence).
-             * 
-             * Heuristique DomOverWDeg :
-             * Si x3 est un nœud avec 4 voisins (connecté à de nombreux autres nœuds), et si
-             * le
-             * domaine de x3 est {0,1} :
-             * WeightedDegree = 4 (lié à 4 autres contraintes).
-             * Domaine = 2 valeurs possibles (0,1).
-             * Score = 2/4 = 0.5.
-             * Une autre variable x5, connectée à seulement 1 autre nœud, aurait un score
-             * 2/1=2.
-             * 
-             * Dans ce cas, le solveur explore d'abord x3 (score plus faible), car sa valeur
-             * a un impact potentiel plus fort sur la
-             * propagation.
-             */
+            IntVar[] vars = model.retrieveIntVars(true);
+
+            Map<Integer, IntVar> varMap = new HashMap<>();
+            for (IntVar var : vars) {
+                String name = var.getName();
+                if (name.matches("val\\[\\d+\\]")) {
+                    int index = Integer.parseInt(name.replaceAll("\\D", ""));
+                    varMap.put(index, var);
+                }
+            }
+
+            List<NodeDegree> degrees = computeDegreesStreaming();
+            List<IntVar> sortedVarList = new ArrayList<>();
+
+            for (NodeDegree degree : degrees) {
+                IntVar sortedVar = varMap.get(degree.index);
+                if (sortedVar != null) {
+                    sortedVarList.add(sortedVar);
+                } else {
+                    System.err.println("Missing variable at index: " + degree.index);
+                }
+            }
+
+            for (IntVar var : vars) {
+                if (!sortedVarList.contains(var)) {
+                    sortedVarList.add(var); // Append missing variables
+                }
+            }
+
+            IntVar[] sortedVars = sortedVarList.toArray(new IntVar[0]);
+
             solver.setSearch(
                     Search.intVarSearch(
-                            new DomOverWDeg<IntVar>(model.retrieveIntVars(true), 0),
+                            (VariableSelector<IntVar>) variable -> {
+                                for (IntVar sortedVar : sortedVars) {
+                                    if (!sortedVar.isInstantiated()) {
+                                        return sortedVar;
+                                    }
+                                }
+                                return null;
+                            },
                             new IntDomainMin(),
-                            model.retrieveIntVars(true)));
+                            vars));
+
         }
 
+        processSolutionsWithTimeout(solver, doTimeOut, optimized);
+    }
+
+    private List<NodeDegree> computeDegreesStreaming() {
+        List<NodeDegree> degrees = new ArrayList<>();
+
+        try (BufferedReader reader = new BufferedReader(new FileReader(getPathToFzn()))) {
+            String line;
+
+            while ((line = reader.readLine()) != null) {
+                if (line.matches(".*array \\[.*\\] of bool: .* = \\[.*\\].*")) {
+                    String[] values = line.substring(line.indexOf('[') + 1, line.lastIndexOf(']')).split(",");
+
+                    for (int i = 0; i < getN(); i++) {
+                        int degree = 0;
+                        for (int j = 0; j < getN(); j++) {
+                            if (values[i * getN() + j].trim().equals("true")) {
+                                degree++;
+                            }
+                        }
+                        degrees.add(i, new NodeDegree(i, degree));
+                    }
+                    break;
+                }
+            }
+        } catch (IOException e) {
+            System.err.println("Erreur lors de la lecture du fichier : " + e.getMessage());
+        }
+
+        // Trier par degré décroissant
+        degrees.sort((a, b) -> Integer.compare(b.degree, a.degree));
+
+        return degrees;
+    }
+
+    private void processSolutionsWithTimeout(Solver solver, boolean doTimeOut, boolean optimized) {
         Boolean hasTimedOut = false;
         Integer count = 0;
 
         final Duration timeout = Duration.ofMinutes(10);
         ExecutorService executor = Executors.newSingleThreadExecutor();
 
-        final Future<Integer> handler = executor.submit(new Callable<>() {
-            @Override
-            public Integer call() throws Exception {
-                return processSolutions(solver);
-            }
-        });
+        final Future<Integer> handler = executor.submit(() -> processSolutions(solver, optimized));
 
         try {
-            if (doTimeOut) {
-                count = handler.get(timeout.toMillis(), TimeUnit.MILLISECONDS);
-            } else {
-                count = handler.get();
-            }
+            count = doTimeOut ? handler.get(timeout.toMillis(), TimeUnit.MILLISECONDS)
+                    : handler.get();
         } catch (TimeoutException e) {
             hasTimedOut = true;
             handler.cancel(true);
@@ -100,20 +141,23 @@ public class ChocoSolverFromFzn extends SolverFromFzn {
         }
     }
 
-    private int processSolutions(Solver solver) {
+    private int processSolutions(Solver solver, boolean optimized) {
         Set<String> uniqueCliques = new HashSet<>();
         int count = 0;
+
+        long start = System.currentTimeMillis();
         while (solver.solve()) {
             StringBuilder clique = new StringBuilder();
+
             for (IntVar var : model.retrieveIntVars(true)) {
                 if (var.getName().contains("X_INTRODUCED")) {
                     clique.append(var.getValue()).append(",");
                 }
             }
 
-            String[] nodes = clique.toString().split(",");
-            Arrays.sort(nodes);
-            String sortedClique = String.join(",", nodes);
+            String sortedClique = Arrays.stream(clique.toString().split(","))
+                    .sorted()
+                    .collect(java.util.stream.Collectors.joining(","));
 
             if (uniqueCliques.add(sortedClique)) {
                 if (count == 0) {
@@ -121,12 +165,16 @@ public class ChocoSolverFromFzn extends SolverFromFzn {
                     if (this.oneSolutionMode) {
                         break;
                     }
+                } else {
+                    System.out.print(count + "\r");
                 }
                 count++;
             }
         }
+        long stop = System.currentTimeMillis();
+
+        System.out.println("Real time is : " + (stop - start) / 1000.0);
 
         return count;
-
     }
 }

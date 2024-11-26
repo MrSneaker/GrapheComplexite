@@ -7,11 +7,15 @@ public abstract class SolverFromFzn {
     private String pathToFzn;
     protected Model model;
     protected boolean oneSolutionMode;
+    private int n;
+    private int k;
 
-    public SolverFromFzn(String pathToFzn, boolean oneSolutionMode) {
+    public SolverFromFzn(String pathToFzn, boolean oneSolutionMode, int n, int k) {
         this.pathToFzn = pathToFzn;
         this.oneSolutionMode = oneSolutionMode;
         this.model = loadFznModel();
+        this.n = n;
+        this.k = k;
     }
 
     public String getPathToFzn() {
@@ -35,11 +39,11 @@ public abstract class SolverFromFzn {
         return;
     }
 
-    public int getNbClauses() {
-        return model.getCstrs().length;
+    public int getN() {
+        return n;
     }
 
-    public int getNbVar() {
-        return model.getVars().length;
+    public int getK() {
+        return k;
     }
 }

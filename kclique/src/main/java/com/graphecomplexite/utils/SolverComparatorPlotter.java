@@ -9,8 +9,6 @@ import org.jfree.chart.renderer.category.BarRenderer;
 import org.jfree.chart.renderer.category.StandardBarPainter;
 import org.jfree.data.category.DefaultCategoryDataset;
 import org.jfree.chart.ui.ApplicationFrame;
-import java.awt.Paint;
-import java.awt.Color;
 import java.util.Map;
 
 public class SolverComparatorPlotter extends ApplicationFrame {
@@ -26,7 +24,7 @@ public class SolverComparatorPlotter extends ApplicationFrame {
                 "Temps (secondes)",              
                 dataset,                  
                 PlotOrientation.VERTICAL,
-                true,                      // Display legend for series (clique sizes)
+                true,
                 true,                     
                 false
         );
@@ -57,26 +55,14 @@ public class SolverComparatorPlotter extends ApplicationFrame {
         renderer.setDrawBarOutline(false);
         renderer.setBarPainter(new StandardBarPainter());
         plot.setRenderer(renderer);
+
+        assignSeriesColorsToPlot(plot, (CustomBarRenderer) renderer);
     }
 
-    private static class CustomBarRenderer extends BarRenderer {
-        private final Color[] colors;
-
-        public CustomBarRenderer(DefaultCategoryDataset dataset) {
-            this.colors = generateColors(dataset.getRowCount());
-        }
-
-        @Override
-        public Paint getItemPaint(int row, int column) {
-            return colors[row]; // Color based on series (clique size)
-        }
-
-        private Color[] generateColors(int numberOfColors) {
-            Color[] colors = new Color[numberOfColors];
-            for (int i = 0; i < numberOfColors; i++) {
-                colors[i] = Color.getHSBColor((float) i / numberOfColors, 0.8f, 0.8f);
-            }
-            return colors;
+    private void assignSeriesColorsToPlot(CategoryPlot plot, CustomBarRenderer renderer) {
+        int rowCount = plot.getDataset().getRowCount();
+        for (int i = 0; i < rowCount; i++) {
+            plot.getRenderer().setSeriesPaint(i, renderer.getItemPaint(i, 0));
         }
     }
 
