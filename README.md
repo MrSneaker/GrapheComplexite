@@ -16,10 +16,10 @@ Pour générer des instances basé sur les instances DIMACS:
 python3 instance_generator.py --gen_dimacs True --k_range 7 20 --model kclique/data/model/model1_kclique.mzn
 ```
 
-## Choco-solver et solutions incomplètes
+## Choco-solver et solutions incomplètes
 
 Vous trouverez le code concernant choco et les solvers incomplets dans le package `kclique`, ainsi que les différents exécutables associés (fichier `Main*.java`) pour reproduire les différentes expérimentations.
 
-## OR-Tools
+## OR-Tools
 
 Vous trouverez le code concernant OR-Tools dans le package `orToolsPart` avec les différents scripts pythons associés.
