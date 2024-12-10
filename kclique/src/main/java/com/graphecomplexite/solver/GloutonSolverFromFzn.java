@@ -5,6 +5,7 @@ import java.io.FileReader;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
 
 public class GloutonSolverFromFzn {
@@ -106,7 +107,7 @@ public class GloutonSolverFromFzn {
                 System.out.print("Méthode 1 - Essaie " + (m + 1) + " : Impossible de trouver une clique de taille " + k
                         + " dans le graphe.\r");
                 nbTry = m + 1;
-                
+
             }
 
         }
@@ -128,7 +129,6 @@ public class GloutonSolverFromFzn {
         List<Integer> clique = new ArrayList<>();
 
         for (int m = 0; m < 10000; ++m) {
-            clique.clear();
             List<Integer> nodes = new ArrayList<>();
             for (int i = 0; i < n; i++) {
                 nodes.add(i);
@@ -167,4 +167,67 @@ public class GloutonSolverFromFzn {
         System.out.println();
         return nbTry;
     }
+
+    public List<List<Integer>> findUniqueKCliques() {
+        try {
+            parseDzn();
+        } catch (IOException e) {
+            System.err.println("Erreur lors du parsing du fichier : " + e.getMessage());
+            return Collections.emptyList();
+        }
+
+        List<List<Integer>> allCliques = new ArrayList<>();
+        List<Integer> clique = new ArrayList<>();
+        List<Integer> nodes = new ArrayList<>();
+
+        for (int i = 0; i < n; i++) {
+            nodes.add(i);
+        }
+
+        nodes.sort((a, b) -> Integer.compare(getNodeDegree(b), getNodeDegree(a)));
+
+        for (int m = 0; m < 10000; ++m) {
+            clique.clear();
+
+            nodes.sort((a, b) -> Integer.compare(getNodeDegree(b), getNodeDegree(a)));
+
+            if (m > 0) {
+                Collections.shuffle(nodes);
+            }
+
+            for (int i : nodes) {
+                boolean canAdd = true;
+                for (int node : clique) {
+                    if (!edges[node][i]) {
+                        canAdd = false;
+                        break;
+                    }
+                }
+
+                if (canAdd) {
+                    clique.add(i);
+                    if (clique.size() == k) {
+                        if (!isDuplicateClique(allCliques, clique)) {
+                            allCliques.add(new ArrayList<>(clique));
+                        }
+                        break;
+                    }
+                }
+            }
+        }
+
+        System.out.println("Nombre total de k-cliques uniques trouvées : " + allCliques.size());
+        return allCliques;
+    }
+
+    private boolean isDuplicateClique(List<List<Integer>> allCliques, List<Integer> clique) {
+        HashSet<Integer> cliqueSet = new HashSet<>(clique);
+        for (List<Integer> existingClique : allCliques) {
+            if (new HashSet<>(existingClique).equals(cliqueSet)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
 }

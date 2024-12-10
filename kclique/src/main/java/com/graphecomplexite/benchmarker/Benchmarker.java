@@ -16,6 +16,7 @@ import org.javatuples.Pair;
 
 import com.graphecomplexite.solver.ChocoSolverFromFzn;
 import com.graphecomplexite.solver.GloutonSolverFromFzn;
+import com.graphecomplexite.utils.EveryKCliqueSolverComparator;
 import com.graphecomplexite.utils.GloutonSolverBarPlotter;
 import com.graphecomplexite.utils.MultiInstancePlotter;
 import com.graphecomplexite.utils.SolverComparatorPlotter;
@@ -154,7 +155,6 @@ public class Benchmarker {
             System.out.println("Solving " + entry.getKey().split("/")[entry.getKey().split("/").length - 1] + " ...");
             int n = entry.getValue().getValue0();
             int k = entry.getValue().getValue1();
-            
 
             ChocoSolverFromFzn solver = new ChocoSolverFromFzn(entry.getKey(), false, n, k);
             long startTime = System.currentTimeMillis();
@@ -186,7 +186,7 @@ public class Benchmarker {
         for (Map.Entry<String, Pair<Integer, Integer>> entry : modelsPathWithN.entrySet()) {
             int n = entry.getValue().getValue0();
             int k = entry.getValue().getValue1();
-            
+
             ChocoSolverFromFzn chocoSolver = new ChocoSolverFromFzn(entry.getKey(), false, n, k);
             ChocoSolverFromFzn chocoSolverOpti = new ChocoSolverFromFzn(entry.getKey(), false, n, k);
 
@@ -238,17 +238,17 @@ public class Benchmarker {
                 long startG = System.currentTimeMillis();
                 glouton.findSolution();
                 long stopG = System.currentTimeMillis();
-    
+
                 long startG2 = System.currentTimeMillis();
                 glouton.findSolutionAlternative();
                 long stopG2 = System.currentTimeMillis();
-            
+
                 ChocoSolverFromFzn chocoSolver = new ChocoSolverFromFzn(entry.getKey(), true, n, k);
                 ChocoSolverFromFzn chocoSolverOpti = new ChocoSolverFromFzn(entry.getKey(), true, n, k);
                 long startCNo = System.currentTimeMillis();
                 chocoSolver.findSolution(false, false);
                 long stopCNo = System.currentTimeMillis();
-    
+
                 long startCo = System.currentTimeMillis();
                 chocoSolverOpti.findSolution(true, false);
                 long stopCo = System.currentTimeMillis();
@@ -256,11 +256,11 @@ public class Benchmarker {
                         "Solver - Stratégie optimisée", (double) (stopCo - startCo) / 1000.0,
                         "Solver glouton Méthode 1", (double) (stopG - startG) / 1000.0, "Solver glouton Méthode 2",
                         (double) (stopG2 - startG2) / 1000.0);
-            } else if (onlyGloutonSolver){
+            } else if (onlyGloutonSolver) {
                 long startG = System.currentTimeMillis();
                 int tries1 = glouton.findSolution();
                 long stopG = System.currentTimeMillis();
-    
+
                 long startG2 = System.currentTimeMillis();
                 int tries2 = glouton.findSolutionAlternative();
                 long stopG2 = System.currentTimeMillis();
@@ -274,12 +274,12 @@ public class Benchmarker {
                 long startCNo = System.currentTimeMillis();
                 chocoSolver.findSolution(false, false);
                 long stopCNo = System.currentTimeMillis();
-    
+
                 long startCo = System.currentTimeMillis();
                 chocoSolverOpti.findSolution(true, false);
                 long stopCo = System.currentTimeMillis();
                 solverTimes = Map.of("Solver - Stratégie par défaut", (double) (stopCNo - startCNo) / 1000.0,
-                "Solver - Stratégie optimisée", (double) (stopCo - startCo) / 1000.0);
+                        "Solver - Stratégie optimisée", (double) (stopCo - startCo) / 1000.0);
             }
 
             data.put("n = " + entry.getValue().getValue0() + ", k = " + entry.getValue().getValue1(), solverTimes);
@@ -292,7 +292,7 @@ public class Benchmarker {
         plot.setVisible(true);
     }
 
-    public void CompareNbTryGlouton(int maxK) {
+    public void compareNbTryGlouton(int maxK) {
         File modelDirectory = new File(System.getProperty("user.dir") + "/kclique/data/dimacs_fzn_instance");
         File dataDirectory = new File(System.getProperty("user.dir") + "/kclique/data/dimacs_dzn_instance");
 
@@ -315,6 +315,40 @@ public class Benchmarker {
         }
 
         GloutonSolverBarPlotter plotter = new GloutonSolverBarPlotter("Comparaison des solutions gloutonnes", data);
+        plotter.pack();
+        plotter.setVisible(true);
+    }
+
+    public void compareEveryKcliqueNb(int maxK) {
+        File modelDirectory = new File(System.getProperty("user.dir") + "/kclique/data/dimacs_fzn_instance");
+        File dataDirectory = new File(System.getProperty("user.dir") + "/kclique/data/dimacs_dzn_instance");
+
+        Map<String, Pair<Integer, Integer>> modelsPathWithN = foundModelInstances(modelDirectory, dataDirectory, true,
+                maxK);
+
+        Map<String, Map<String, Integer>> data = new HashMap<>();
+
+        for (Map.Entry<String, Pair<Integer, Integer>> entry : modelsPathWithN.entrySet()) {
+            String dznPath = entry.getKey().replace("fzn", "dzn");
+
+            GloutonSolverFromFzn glouton = new GloutonSolverFromFzn(dznPath);
+            ChocoSolverFromFzn complete = new ChocoSolverFromFzn(entry.getKey(), false, entry.getValue().getValue0(),
+                    entry.getValue().getValue1());
+
+            List<List<Integer>> gloutonCliques = glouton.findUniqueKCliques();
+            int completeCliqueCount = complete.findSolution(false, false);
+
+            int gloutonCliqueCount = gloutonCliques.size();
+            
+            Map<String, Integer> solverResults = Map.of(
+                    "Solveur Glouton", gloutonCliqueCount,
+                    "Solveur Complet", completeCliqueCount);
+
+            data.put("n = " + entry.getValue().getValue0() + ", k = " + entry.getValue().getValue1(), solverResults);
+        }
+
+        EveryKCliqueSolverComparator plotter = new EveryKCliqueSolverComparator(
+                "Comparaison des solutions trouvées par les solveurs", data);
         plotter.pack();
         plotter.setVisible(true);
     }

@@ -2,11 +2,9 @@ package com.graphecomplexite;
 
 import com.graphecomplexite.benchmarker.Benchmarker;
 
-public class MainGlouton {
+public class MainGlouton2 {
     public static void main(String[] args) {
-
         Benchmarker b = new Benchmarker();
-        b.compareNbTryGlouton(44);
-        b.compareSolverOnKClique(44, true, false);
+        b.compareEveryKcliqueNb(2);
     }
 }

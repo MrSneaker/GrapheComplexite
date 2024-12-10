@@ -31,7 +31,7 @@ public class ChocoSolverFromFzn extends SolverFromFzn {
     }
 
     @Override
-    public void findSolution(boolean optimized, boolean doTimeOut) {
+    public int findSolution(boolean optimized, boolean doTimeOut) {
         Solver solver = model.getSolver();
         if (optimized) {
             IntVar[] vars = model.retrieveIntVars(true);
@@ -50,7 +50,7 @@ public class ChocoSolverFromFzn extends SolverFromFzn {
                             vars));
         }
 
-        processSolutionsWithTimeout(solver, doTimeOut, optimized);
+        return processSolutionsWithTimeout(solver, doTimeOut, optimized);
     }
 
     private void setupFailureMonitor(Solver solver) {
@@ -93,7 +93,7 @@ public class ChocoSolverFromFzn extends SolverFromFzn {
         return activeConstraints + domainFactor;
     }
 
-    private void processSolutionsWithTimeout(Solver solver, boolean doTimeOut, boolean optimized) {
+    private int processSolutionsWithTimeout(Solver solver, boolean doTimeOut, boolean optimized) {
         Boolean hasTimedOut = false;
         Integer count = 0;
 
@@ -120,7 +120,9 @@ public class ChocoSolverFromFzn extends SolverFromFzn {
             System.out.println("La recherche prend trop de temps, timeout.");
         } else if (!this.oneSolutionMode) {
             System.out.println("Il y a " + count + " solution");
+            return count;
         }
+        return count;
     }
 
     private int processSolutions(Solver solver, boolean optimized) {
